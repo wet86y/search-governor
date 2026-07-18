@@ -1,0 +1,30 @@
+.venv/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# Operator credentials and model/provider overrides
+.env
+config/.env
+config/*.local.json
+
+# Private providers and local integrations
+providers.local/
+integrations.local/
+
+# Runtime state
+data/
+*.log
+*.html
+*.fulltext.jsonl
+*.raw.json
+*.reranker_io.json
+
+# Local connector payloads and browser state
+connectors
+connectors/
+
+# Archives and release output
+dist/
+*.zip
+*.tar.gz

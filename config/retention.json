@@ -1,0 +1,14 @@
+{
+  "ttl_days": 3,
+  "max_data_mb": 10,
+  "cleanup_target_mb": 8,
+  "cleanup_on_search": true,
+  "save_candidates": true,
+  "save_deduped": true,
+  "save_reranked": true,
+  "save_fetch_status": true,
+  "save_evidence": true,
+  "save_raw_provider_response": false,
+  "save_full_text": false,
+  "save_html": false
+}

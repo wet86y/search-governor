@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "provider": "compatible_http",
+  "api_base": "",
+  "api_key_env": "SEARCH_GOVERNOR_RERANK_API_KEY",
+  "model": "",
+  "instruction": "Rank each candidate only by its usefulness for answering the search request and its declared evidence quality.",
+  "return_documents": false,
+  "timeout_sec": 45,
+  "max_candidates": 40,
+  "max_input_chars": 28000,
+  "min_doc_chars_after_audit": 300,
+  "max_doc_chars": 1200,
+  "body_max_doc_chars": 4000,
+  "score_weights": {"rule": 0.3, "rerank": 0.7},
+  "body_score_weights": {"summary": 0.25, "body": 0.75},
+  "fail_closed_by_default": false
+}

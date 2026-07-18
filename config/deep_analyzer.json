@@ -1,0 +1,22 @@
+{
+  "enabled": false,
+  "provider": "openai_compatible_http",
+  "api_base": "",
+  "api_key_env": "SEARCH_GOVERNOR_ANALYSIS_API_KEY",
+  "model": "",
+  "temperature": 0.2,
+  "max_tokens": 3000,
+  "article_max_tokens": 5000,
+  "timeout_sec": 90,
+  "article_timeout_sec": 120,
+  "max_input_chars": 100000,
+  "article_max_input_chars": 100000,
+  "audit_body_excerpt_chars": 1200,
+  "source_eval_body_chars_per_result": 1800,
+  "article_body_chars_per_result": 6000,
+  "body_chars_per_result": 8000,
+  "body_chars_full_cap": 12000,
+  "source_eval_fail_policy": "soft_fail",
+  "system_prompt": "Evaluate source quality using only the supplied search evidence. Return strict JSON and do not add external facts.",
+  "enable_thinking": false
+}

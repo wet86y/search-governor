@@ -1,0 +1,52 @@
+{
+  "id": "mock",
+  "name": "Mock Search Source for smoke test",
+  "exposure": "internal_only",
+  "type": "subprocess",
+  "entrypoint": "python adapter.py",
+  "timeout_sec": 10,
+  "requires_env": [],
+  "capabilities": {
+    "result_kind": "mock",
+    "search_result": true,
+    "snippet": true,
+    "text_chunk": true,
+    "content_granularity": "snippet",
+    "inline_content_for_analysis": true,
+    "external_fetch": false,
+    "expandable_content": false,
+    "native_fetch": null,
+    "full_document": false
+  },
+  "supports": {
+    "per_provider_count": true,
+    "search_depth": false,
+    "freshness": false,
+    "date_after": false,
+    "date_before": false,
+    "topic": false,
+    "include_domains": false,
+    "exclude_domains": false,
+    "locale": "ignored",
+    "language": false,
+    "country": false,
+    "include_provider_answer": false
+  },
+  "runtime_dependencies": {
+    "commands": [],
+    "files": []
+  },
+  "defaults": {
+    "per_provider_count": 8,
+    "timeout_sec": 10,
+    "locale": "zh-CN"
+  },
+  "limits": {
+    "max_results": 20,
+    "timeout_sec": 10
+  },
+  "output_contract": {
+    "format": "jsonl",
+    "required_fields": ["title", "url", "snippet", "provider", "rank"]
+  }
+}

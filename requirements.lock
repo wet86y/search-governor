@@ -1,0 +1,2 @@
+# v0.1 uses Python stdlib only.
+# Keep this file so future agents can pin dependencies explicitly.

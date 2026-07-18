@@ -1,0 +1,13 @@
+{
+  "default_preset": "configured",
+  "mode_default_presets": {
+    "fast": "configured",
+    "full": "configured",
+    "deep": "configured"
+  },
+  "presets": {
+    "configured": {
+      "weights": {}
+    }
+  }
+}

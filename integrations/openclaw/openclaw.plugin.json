@@ -1,0 +1,19 @@
+{
+  "id": "openclaw-search-governor-websearch",
+  "name": "Search Governor OpenClaw Integration",
+  "version": "0.1.0",
+  "contracts": {
+    "webSearchProviders": [
+      "search-governor"
+    ],
+    "tools": [
+      "search_governor_status",
+      "search_governor_read"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

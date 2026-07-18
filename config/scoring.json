@@ -1,0 +1,18 @@
+{
+  "provider_weight": {
+    "mock": 0.5
+  },
+  "domain_bonus": {
+    "github.com": 0.12,
+    "docs.": 0.15,
+    "developer.": 0.1,
+    "api.": 0.08,
+    "pypi.org": 0.08,
+    "npmjs.com": 0.08
+  },
+  "penalties": {
+    "excluded_domain": -1.0,
+    "missing_snippet": -0.1,
+    "very_short_snippet": -0.05
+  }
+}

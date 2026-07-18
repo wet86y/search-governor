@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+  DIR="$(cd -P -- "$(dirname -- "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SOURCE")" >/dev/null 2>&1 && pwd)"
+SG_HOME="$(cd -- "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+export SG_HOME
+export PYTHONPATH="$SG_HOME${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+if [[ -x "$SG_HOME/.venv/bin/python" ]]; then
+  PY="$SG_HOME/.venv/bin/python"
+else
+  PY="${PYTHON:-python3}"
+fi
+exec "$PY" -m search_governor.cli "$@"
