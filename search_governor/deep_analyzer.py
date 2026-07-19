@@ -472,23 +472,29 @@ def _eval_single(
         ],
         "results": [_candidate_payload(candidate, 1, query, ranking_query, body_chars, full_cap)],
     }
-    try:
-        parsed, raw = _chat_json(payload, cfg)
-        if isinstance(parsed, list):
-            items = parsed
-        elif isinstance(parsed, dict):
-            items = parsed.get("items", [parsed] if parsed.get("rank") else [])
-        else:
-            items = []
-        return {
-            "index": index,
-            "item": items[0] if items else None,
-            "usage": raw.get("usage", {}) if isinstance(raw, dict) else {},
-            "input_audit": raw.get("_input_audit") if isinstance(raw, dict) else None,
-        }
-    except Exception as exc:
-        print(f"source_eval: candidate #{index} failed: {exc}", file=sys.stderr)
-        return None
+    attempts = max(1, int(cfg.get("source_eval_attempts", 2)))
+    last_error: Exception | None = None
+    for _attempt in range(attempts):
+        try:
+            parsed, raw = _chat_json(payload, cfg)
+            if isinstance(parsed, list):
+                items = parsed
+            elif isinstance(parsed, dict):
+                items = parsed.get("items", [parsed] if parsed.get("rank") else [])
+            else:
+                items = []
+            if not items:
+                raise DeepAnalyzerError("source evaluation returned no items")
+            return {
+                "index": index,
+                "item": items[0],
+                "usage": raw.get("usage", {}) if isinstance(raw, dict) else {},
+                "input_audit": raw.get("_input_audit") if isinstance(raw, dict) else None,
+            }
+        except Exception as exc:
+            last_error = exc
+    print(f"source_eval: candidate #{index} failed after {attempts} attempts: {last_error}", file=sys.stderr)
+    return None
 
 
 def analyze_source_quality(

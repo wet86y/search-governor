@@ -17,16 +17,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
-SG_HOME = Path(__file__).resolve().parents[1]
+SG_HOME = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SG_HOME))
-os_env = __import__("os")
-os_env.environ.setdefault("SG_HOME", str(SG_HOME))
+os.environ.setdefault("SG_HOME", str(SG_HOME))
 
 from search_governor.config import load_all_configs
 from search_governor.content_cleaner import clean_text
@@ -80,10 +82,39 @@ NAVIGATION_ERROR_PATTERNS = [
 ]
 
 
-def run_browser(args: list[str], *, timeout: int) -> dict[str, Any]:
-    cmd = ["openclaw", "browser", "--json", *args]
+def resolve_openclaw_bin() -> str:
+    configured = os.environ.get("OPENCLAW_BIN", "").strip()
+    candidates = [configured, str(Path.home() / ".npm-global" / "bin" / "openclaw"), shutil.which("openclaw") or ""]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    raise RuntimeError("OpenClaw executable not found; set OPENCLAW_BIN")
+
+
+def browser_request(
+    method: str,
+    path: str,
+    *,
+    profile: str,
+    timeout: int,
+    body: dict[str, Any] | None = None,
+    query: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    helper = Path(__file__).with_name("browser_gateway_rpc.mjs")
+    request_query = {"profile": profile}
+    if query:
+        request_query.update(query)
+    request = {
+        "method": method,
+        "path": path,
+        "query": {key: str(value).lower() if isinstance(value, bool) else str(value) for key, value in request_query.items()},
+        "body": body,
+        "timeoutMs": timeout * 1000,
+    }
+    cmd = ["node", str(helper), resolve_openclaw_bin()]
     proc = subprocess.run(
         cmd,
+        input=json.dumps(request, ensure_ascii=False),
         text=True,
         capture_output=True,
         timeout=timeout,
@@ -91,14 +122,14 @@ def run_browser(args: list[str], *, timeout: int) -> dict[str, Any]:
     )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout).strip()
-        raise RuntimeError(detail or f"browser command failed: {' '.join(cmd)}")
+        raise RuntimeError(detail or "OpenClaw browser gateway request failed")
     try:
         return json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"browser command returned non-JSON: {proc.stdout[:500]}") from exc
 
 
-def evaluate_page(timeout: int, max_text_chars: int, target_id: str | None = None) -> dict[str, Any]:
+def evaluate_page(profile: str, timeout: int, max_text_chars: int, target_id: str | None = None) -> dict[str, Any]:
     fn = (
         "() => ({"
         "url: location.href,"
@@ -108,11 +139,10 @@ def evaluate_page(timeout: int, max_text_chars: int, target_id: str | None = Non
         ") : ''"
         "})"
     )
-    cmd = ["evaluate"]
+    body: dict[str, Any] = {"kind": "evaluate", "fn": fn, "timeoutMs": timeout * 1000}
     if target_id:
-        cmd.extend(["--target-id", target_id])
-    cmd.extend(["--fn", fn])
-    payload = run_browser(cmd, timeout=timeout)
+        body["targetId"] = target_id
+    payload = browser_request("POST", "/act", profile=profile, timeout=timeout, body=body)
     result = payload.get("result")
     return result if isinstance(result, dict) else {}
 
@@ -173,16 +203,13 @@ def fetch_with_browser(
     """Fetch a URL via the OpenClaw browser and return page content."""
 
     # Start browser
-    start_args = ["--browser-profile", profile, "start"]
-    if headless:
-        start_args.append("--headless")
     started_at = time.perf_counter()
-    run_browser(start_args, timeout=command_timeout)
+    browser_request("POST", "/start", profile=profile, timeout=command_timeout, query={"headless": headless} if headless else None)
     browser_start_ms = int((time.perf_counter() - started_at) * 1000)
 
     # Open URL
     opened_at = time.perf_counter()
-    opened = run_browser(["--browser-profile", profile, "open", url], timeout=command_timeout)
+    opened = browser_request("POST", "/tabs/open", profile=profile, timeout=command_timeout, body={"url": url})
     target_id = opened.get("targetId")
     tab_ref = opened.get("suggestedTargetId") or opened.get("tabId") or target_id
 
@@ -193,7 +220,7 @@ def fetch_with_browser(
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         time.sleep(poll_interval)
-        page = evaluate_page(command_timeout, max_text_chars, str(target_id) if target_id else None)
+        page = evaluate_page(profile, command_timeout, max_text_chars, str(target_id) if target_id else None)
         last_page = page
         status, status_msg = classify_page(
             str(page.get("url") or ""),
@@ -229,7 +256,7 @@ def fetch_with_browser(
     # Close tab unless requested to keep
     if tab_ref and not keep_tab:
         try:
-            run_browser(["--browser-profile", profile, "close", str(tab_ref)], timeout=command_timeout)
+            browser_request("DELETE", f"/tabs/{quote(str(tab_ref), safe='')}", profile=profile, timeout=command_timeout)
         except Exception as exc:
             result["close_error"] = str(exc)
 

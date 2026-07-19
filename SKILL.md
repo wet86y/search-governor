@@ -9,11 +9,12 @@ Use Search Governor as the single search entry whenever manually registered prov
 
 ## Workflow
 
-1. Call the Agent integration's `search-governor` search provider, or run `sg search`.
+1. Call the Agent integration's `search-governor` search provider for ordinary fast search, or run `sg search`.
 2. Do not call internal provider adapters directly.
 3. Treat returned summaries as the governed initial result set.
 4. When a returned result has deferred body content, use the integration's status/read companion tools if available.
 5. If `auth_required` is returned, ask the user to complete the relevant local authentication or verification.
+6. Route full and deep Agent requests through the generated OpenClaw Skill; do not maintain a second copy of the Search Governor runtime inside the Agent workspace.
 
 ## Modes
 
@@ -22,3 +23,5 @@ Use Search Governor as the single search entry whenever manually registered prov
 - `deep`: full mode plus a brief-driven evidence article; requires a configured analysis backend unless explicit fallback is allowed.
 
 Providers are registered manually through the subprocess adapter contract. Agent tools, APIs, scripts, browser flows, and crawlers all use the same request-JSON to Candidate-JSONL boundary.
+
+Search mode owns the total provider budget; a provider preset owns only provider selection and allocation weights. Special platform providers must be explicitly requested and must not be inferred or added to ordinary presets.

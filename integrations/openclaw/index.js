@@ -223,6 +223,8 @@ function runSearchGovernor(query, count, signal) {
       query,
       "--mode",
       "fast",
+      "--preset",
+      "speed",
       "--return-count",
       String(count),
       "--format",
@@ -340,7 +342,7 @@ function toWebSearchResult(item, index, runId) {
 const searchGovernorProvider = {
   id: PROVIDER_ID,
   label: "Search Governor",
-  hint: "Governed aggregated search using manually registered local providers.",
+  hint: "Governed aggregated fast search using the operator-configured speed preset.",
   requiresCredential: false,
   envVars: [],
   placeholder: "",
@@ -351,7 +353,7 @@ const searchGovernorProvider = {
   setCredentialValue: () => {},
   createTool: () => ({
     description:
-      "Search through Search Governor's manually registered providers. Results are normalized, deduplicated, ranked, and optionally fetched through one governed search entry. Use search_governor_status and search_governor_read for body content after the search.",
+      "Search through Search Governor fast mode using the speed provider mix. Results are normalized, deduplicated, ranked, and optionally fetched through one governed search entry. Use search_governor_status and search_governor_read for body content after the search.",
     parameters: {
       type: "object",
       additionalProperties: false,

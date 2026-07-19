@@ -3,7 +3,7 @@
   "provider": "builtin_http",
   "timeout_sec": 20,
   "normal_concurrency": 4,
-  "sensitive_concurrency": 2,
+  "sensitive_concurrency": 3,
   "max_chars_per_doc": 5000,
   "user_agent": "Mozilla/5.0 (compatible; SearchGovernor/0.1)",
   "allowed_schemes": ["http", "https"],

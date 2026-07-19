@@ -20,5 +20,5 @@ jobs:
           node-version: "22"
       - run: bash scripts/install.sh
       - run: bash scripts/check.sh
-      - run: bash scripts/export_bundle.sh 0.1.0
-      - run: unzip -l dist/search-governor-v0.1.0.zip
+      - run: bash scripts/export_bundle.sh 0.1.1
+      - run: unzip -l dist/search-governor-v0.1.1.zip

@@ -6,9 +6,25 @@ from typing import Any
 from .paths import config_dir, home
 
 
+class ConfigError(ValueError):
+    pass
+
+
+def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ConfigError(f"Duplicate JSON key: {key}")
+        value[key] = item
+    return value
+
+
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        try:
+            return json.load(f, object_pairs_hook=_strict_object)
+        except ConfigError as exc:
+            raise ConfigError(f"Invalid configuration in {path}: {exc}") from exc
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

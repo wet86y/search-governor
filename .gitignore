@@ -11,6 +11,8 @@ config/*.local.json
 # Private providers and local integrations
 providers.local/
 integrations.local/
+build.local/
+legacy.local/
 
 # Runtime state
 data/

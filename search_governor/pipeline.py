@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import math
 import subprocess
 import sys
 import uuid
@@ -111,6 +112,14 @@ def resolve_provider_preset(presets_cfg: dict[str, Any], name: str | None, mode:
     preset = presets.get(preset_name)
     if not isinstance(preset, dict):
         raise PipelineError(f"Unknown provider preset from {preset_source}: {preset_name}")
+    weights = preset.get("weights", {})
+    if not isinstance(weights, dict):
+        raise PipelineError(f"Provider preset {preset_name} must contain a weights object")
+    for source_id, weight in weights.items():
+        if not isinstance(source_id, str) or not source_id.strip():
+            raise PipelineError(f"Provider preset {preset_name} contains an empty provider id")
+        if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not math.isfinite(float(weight)) or float(weight) <= 0:
+            raise PipelineError(f"Provider preset {preset_name} has invalid weight for {source_id}: {weight!r}")
     return preset_name, preset, preset_source
 
 
@@ -207,7 +216,7 @@ def mode_defaults(mode: str) -> dict[str, Any]:
         }
     return {
         "sources": [],
-        "total_provider_count": 20,
+        "total_provider_count": 15,
         "per_provider_count": 5,
         "return_count": 5,
         "summary_count": 5,
@@ -245,7 +254,7 @@ def search(args) -> dict[str, Any]:
     if args.providers:
         requested_sources = split_csv(args.providers)
     else:
-        requested_sources = [s for s in preset_weights if s in all_sources] or defaults.get("sources", [])
+        requested_sources = list(preset_weights) or defaults.get("sources", [])
     if not requested_sources:
         raise PipelineError(
             "No search providers are configured. Register providers in providers.local/registry.json "
@@ -408,7 +417,15 @@ def search(args) -> dict[str, Any]:
             attach_analysis(top, source_eval_report)
             apply_source_quality_blend(top, cfg["deep_analyzer"])
             top = sorted(top, key=lambda c: c.final_score, reverse=True)[:return_count]
-            write_stage(run_dir, "source_eval", "ok", report={k: source_eval_report.get(k) for k in ("ok", "model", "usage")})
+            eval_items = ((source_eval_report.get("analysis") or {}).get("items") or [])
+            write_stage(
+                run_dir,
+                "source_eval",
+                "ok" if source_eval_report.get("ok") else "partial",
+                output_count=len(eval_items),
+                input_count=len(top),
+                report={k: source_eval_report.get(k) for k in ("ok", "model", "usage")},
+            )
         except Exception as exc:
             source_eval_report = {"enabled": True, "ok": False, "error": str(exc)}
             write_stage(run_dir, "source_eval", "failed", error=str(exc))
