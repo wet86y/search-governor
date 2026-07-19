@@ -13,7 +13,7 @@ class SkillBuilderTests(unittest.TestCase):
     def test_browser_fallback_resolves_repository_root(self) -> None:
         browser_fetch = ROOT / "integrations" / "openclaw" / "browser_fetch.py"
         text = browser_fetch.read_text(encoding="utf-8")
-        self.assertIn("SG_HOME = Path(__file__).resolve().parents[2]", text)
+        self.assertIn("SG_APP_HOME = Path(__file__).resolve().parents[2]", text)
 
     def test_generated_skill_uses_new_cli_and_local_extension(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

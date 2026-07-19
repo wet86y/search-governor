@@ -10,11 +10,20 @@ The provider calls the single `sg search` entry and uses the operator's manually
 
 Status and read are post-search body helpers, not separate search entries. The plugin does not replace OpenClaw's built-in `web_fetch`.
 
-Full and deep Agent routing, fast-result body reading, fetch boundaries, and error/degradation behavior are supplied by the generated Agent contract Skill under `skill-template/`. Build it with `python3 scripts/build_openclaw_skill.py`; local platform-provider rules belong beside the integration in the Git-ignored `local/skill-routes.md` extension. Install it with `openclaw skills install data/staging/openclaw-search-governor --as openclaw-search-governor --force`. The atomic deploy helper remains available for pre-install archiving and rollback preparation when the OpenClaw installer is unavailable.
+Full and deep Agent routing, fast-result body reading, fetch boundaries, and error/degradation behavior are supplied by the generated Agent contract Skill under `skill-template/`. Build it from the installed release; local platform-provider rules belong in `runtime/integrations/openclaw/local/skill-routes.md`. The generated Skill is written to `runtime/data/staging/`. The atomic deploy helper remains available for pre-install archiving and rollback preparation when the OpenClaw installer is unavailable.
 
 ```bash
 openclaw plugins install --link \
-  ~/.local/share/search-governor/integrations/openclaw --force
+  ~/.local/share/search-governor/current/integrations/openclaw --force
 openclaw plugins inspect openclaw-search-governor-websearch --runtime
 openclaw infer web search --provider search-governor --query "Search Governor" --limit 2 --json
+```
+
+```bash
+python3 ~/.local/share/search-governor/current/scripts/build_openclaw_skill.py \
+  --root ~/.local/share/search-governor/current \
+  --runtime-root ~/.local/share/search-governor/runtime \
+  --sg-bin ~/.local/bin/sg
+openclaw skills install ~/.local/share/search-governor/runtime/data/staging/openclaw-search-governor \
+  --as openclaw-search-governor --force
 ```

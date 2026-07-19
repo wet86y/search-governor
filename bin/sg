@@ -7,12 +7,21 @@ while [[ -L "$SOURCE" ]]; do
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SOURCE")" >/dev/null 2>&1 && pwd)"
-SG_HOME="$(cd -- "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
-export SG_HOME
-export PYTHONPATH="$SG_HOME${PYTHONPATH:+:$PYTHONPATH}"
+SG_APP_HOME="$(cd -- "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+if [[ -z "${SG_RUNTIME_HOME:-}" ]]; then
+  RELEASES_DIR="$(dirname -- "$SG_APP_HOME")"
+  if [[ "$(basename -- "$RELEASES_DIR")" == "releases" ]]; then
+    SG_RUNTIME_HOME="$(cd -- "$RELEASES_DIR/../runtime" >/dev/null 2>&1 && pwd)"
+  else
+    SG_RUNTIME_HOME="${SG_HOME:-$SG_APP_HOME}"
+  fi
+fi
+export SG_APP_HOME SG_RUNTIME_HOME
+export SG_HOME="$SG_RUNTIME_HOME"
+export PYTHONPATH="$SG_APP_HOME${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONDONTWRITEBYTECODE=1
-if [[ -x "$SG_HOME/.venv/bin/python" ]]; then
-  PY="$SG_HOME/.venv/bin/python"
+if [[ -x "$SG_APP_HOME/.venv/bin/python" ]]; then
+  PY="$SG_APP_HOME/.venv/bin/python"
 else
   PY="${PYTHON:-python3}"
 fi

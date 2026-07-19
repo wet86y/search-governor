@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
-from .paths import config_dir, home
+from .paths import app_config_dir, app_home, config_dir, runtime_home
 
 
 class ConfigError(ValueError):
@@ -38,7 +38,7 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
 
 
 def load_config(name: str) -> dict[str, Any]:
-    public_path = config_dir() / f"{name}.json"
+    public_path = app_config_dir() / f"{name}.json"
     value = load_json(public_path)
     local_path = config_dir() / f"{name}.local.json"
     if os.environ.get("SEARCH_GOVERNOR_DISABLE_LOCAL") != "1" and local_path.exists():
@@ -65,7 +65,9 @@ def load_dotenv() -> None:
 def load_all_configs() -> dict[str, Any]:
     load_dotenv()
     cfg = {
-        "home": str(home()),
+        "home": str(runtime_home()),
+        "app_home": str(app_home()),
+        "runtime_home": str(runtime_home()),
         "provider_presets": load_config("provider_presets"),
         "reranker": load_config("reranker"),
         "deep_analyzer": load_config("deep_analyzer"),

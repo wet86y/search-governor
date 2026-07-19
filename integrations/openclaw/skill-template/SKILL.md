@@ -7,8 +7,8 @@ description: "Use 聚合搜索/Search Governor for web search, multi-source retr
 
 Search Governor is OpenClaw's single governed search entry. It keeps every
 registered web search tool, API, Skill wrapper, knowledge base, browser flow,
-or crawler behind one pipeline: collect, normalize, deduplicate, allocate the
-mode budget, rerank, fetch or expand bodies, clean and deduplicate content,
+or crawler behind one pipeline: collect, normalize, deduplicate candidates,
+allocate the mode budget, rerank, fetch or expand bodies, clean content,
 evaluate evidence, and optionally produce a deep evidence article.
 
 Never invoke an internal provider adapter directly. A provider is a source
@@ -73,7 +73,7 @@ names.
 ## Full and deep workflow
 
 - `full` synchronously expands or fetches top bodies, reranks with body
-  evidence when configured, deduplicates cleaned content, and evaluates source
+  evidence when configured, cleans body content, and evaluates source
   quality. Use the returned structured evidence; do not rerun individual
   providers to fill perceived gaps.
 - `deep` includes the full pipeline and requires the four brief fields. Make
@@ -96,8 +96,9 @@ Search Governor owns the body pipeline:
    rate-limited, or empty-content failures.
 4. Do not browser-fallback for DNS failure, refused/reset connections, timeout,
    or other network-unreachable failures.
-5. Clean fetched text and remove duplicate URL/content fingerprints before
-   evidence evaluation and output.
+5. Remove normalized-URL and similar-title candidate duplicates before the body
+   stage, then remove duplicate lines while cleaning each fetched body. Cross-
+   document body fingerprint deduplication is not implemented yet.
 6. Surface CAPTCHA, anti-bot, or forced login as `auth_required`. Ask the user
    to complete authentication or verification in the configured browser profile
    before retrying.

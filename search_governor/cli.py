@@ -11,7 +11,7 @@ from .config import load_all_configs
 from .sources import load_sources
 from .gc import cleanup
 from .pipeline import search, PipelineError
-from .paths import home, data_dir
+from .paths import app_home, data_dir, home, runtime_home
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -120,7 +120,8 @@ def _check_runtime_dependencies(spec) -> tuple[list[str], list[str]]:
 
 def cmd_health() -> int:
     ok = True
-    print(f"SG_HOME={home()}")
+    print(f"SG_APP_HOME={app_home()}")
+    print(f"SG_RUNTIME_HOME={runtime_home()}")
     print(f"data_dir={data_dir()}")
     default_sources: set[str] = set()
     try:

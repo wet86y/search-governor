@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from pathlib import Path
 
@@ -11,9 +12,9 @@ DESCRIPTION_TOKEN = "{{LOCAL_DESCRIPTION_SUFFIX}}"
 DESCRIPTION_DIRECTIVE = re.compile(r"^<!--\s*description-suffix:\s*(.*?)\s*-->\s*", re.MULTILINE)
 
 
-def build_skill(root: Path, template: Path, local_extension: Path | None, output_dir: Path) -> Path:
+def build_skill(root: Path, template: Path, local_extension: Path | None, output_dir: Path, sg_bin: Path | None = None) -> Path:
     root = root.resolve()
-    sg_bin = (root / "bin" / "sg").resolve()
+    sg_bin = (sg_bin or root / "bin" / "sg").expanduser().resolve()
     if not sg_bin.is_file():
         raise SystemExit(f"Search Governor CLI not found: {sg_bin}")
     text = template.read_text(encoding="utf-8")
@@ -53,12 +54,15 @@ def main() -> int:
     parser.add_argument("--template", type=Path)
     parser.add_argument("--local-extension", type=Path)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--runtime-root", type=Path)
+    parser.add_argument("--sg-bin", type=Path)
     args = parser.parse_args()
     root = args.root.resolve()
+    runtime_root = (args.runtime_root or Path(os.environ.get("SG_RUNTIME_HOME", root))).expanduser().resolve()
     template = args.template or root / "integrations" / "openclaw" / "skill-template" / "SKILL.md"
-    local_extension = args.local_extension or root / "integrations" / "openclaw" / "local" / "skill-routes.md"
-    output_dir = args.output_dir or root / "data" / "staging" / "openclaw-search-governor"
-    output = build_skill(root, template, local_extension, output_dir)
+    local_extension = args.local_extension or runtime_root / "integrations" / "openclaw" / "local" / "skill-routes.md"
+    output_dir = args.output_dir or runtime_root / "data" / "staging" / "openclaw-search-governor"
+    output = build_skill(root, template, local_extension, output_dir, args.sg_bin)
     print(output)
     return 0
 

@@ -8,9 +8,9 @@ import sys
 from pathlib import Path
 
 
-SG_HOME = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(SG_HOME))
-os.environ.setdefault("SG_HOME", str(SG_HOME))
+SG_APP_HOME = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SG_APP_HOME))
+os.environ.setdefault("SG_APP_HOME", str(SG_APP_HOME))
 
 from search_governor.config import load_all_configs
 from search_governor.content_cleaner import clean_top_content
