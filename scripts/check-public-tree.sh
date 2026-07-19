@@ -11,8 +11,8 @@ for forbidden in 'config/.env' 'config/provider_presets.local.json' 'config/scor
     exit 1
   fi
 done
-for forbidden_prefix in 'providers.local/' 'integrations.local/' 'build.local/' 'legacy.local/' 'data/' 'connectors/'; do
-  if grep -Fq "$forbidden_prefix" <<<"$tracked"; then
+for forbidden_prefix in 'managed_sources/' 'integrations/openclaw/local/' 'providers.local/' 'integrations.local/' 'build.local/' 'legacy.local/' 'data/' 'connectors/'; do
+  if awk -v prefix="$forbidden_prefix" 'index($0, prefix) == 1 { found = 1 } END { exit !found }' <<<"$tracked"; then
     echo "Forbidden local path prefix is tracked: $forbidden_prefix" >&2
     exit 1
   fi

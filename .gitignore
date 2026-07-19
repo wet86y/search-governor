@@ -8,11 +8,9 @@ __pycache__/
 config/.env
 config/*.local.json
 
-# Private providers and local integrations
-providers.local/
-integrations.local/
-build.local/
-legacy.local/
+# Operator-owned runtime sources and integration rules
+/managed_sources/
+/integrations/openclaw/local/
 
 # Runtime state
 data/

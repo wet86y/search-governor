@@ -43,14 +43,14 @@ def fail(message: str) -> None:
 
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
-        fail("usage: scripts/validate_source.py <providers/<id>/source.json>")
+        fail("usage: scripts/validate_source.py <managed_sources/<id>/source.json>")
     path = Path(argv[1])
     payload = json.loads(path.read_text(encoding="utf-8"))
     missing = sorted(REQUIRED_TOP_LEVEL - set(payload))
     if missing:
         fail(f"{path}: missing top-level fields: {missing}")
     if "enabled" in payload:
-        fail(f"{path}: top-level enabled is not allowed; use a registry.json entry")
+        fail(f"{path}: top-level enabled is not allowed; use a sources.json entry")
     caps = payload.get("capabilities")
     if not isinstance(caps, dict):
         fail(f"{path}: capabilities must be object")

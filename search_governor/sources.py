@@ -2,9 +2,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-import os
 from typing import Any
-from .paths import local_sources_dir, sources_dir
+from .paths import sources_dir
 
 
 @dataclass
@@ -19,8 +18,8 @@ class SourceRegistryError(RuntimeError):
     pass
 
 
-def _load_registry(root: Path, registry_name: str) -> list[SourceSpec]:
-    registry_path = root / registry_name
+def _load_registry(root: Path) -> list[SourceSpec]:
+    registry_path = root / "sources.json"
     if not registry_path.exists():
         return []
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
@@ -51,12 +50,6 @@ def _load_registry(root: Path, registry_name: str) -> list[SourceSpec]:
 
 def load_sources() -> dict[str, SourceSpec]:
     out: dict[str, SourceSpec] = {}
-    registries = [(sources_dir(), "registry.json")]
-    if os.environ.get("SEARCH_GOVERNOR_DISABLE_LOCAL") != "1":
-        registries.append((local_sources_dir(), "registry.json"))
-    for root, name in registries:
-        for spec in _load_registry(root, name):
-            if spec.id in out:
-                raise SourceRegistryError(f"Duplicate provider id across registries: {spec.id}")
-            out[spec.id] = spec
+    for spec in _load_registry(sources_dir()):
+        out[spec.id] = spec
     return out

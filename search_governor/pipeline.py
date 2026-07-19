@@ -257,7 +257,7 @@ def search(args) -> dict[str, Any]:
         requested_sources = list(preset_weights) or defaults.get("sources", [])
     if not requested_sources:
         raise PipelineError(
-            "No search providers are configured. Register providers in providers.local/registry.json "
+            "No search providers are configured. Register providers in managed_sources/sources.json "
             "or pass --providers explicitly. The bundled example provider is for tests only."
         )
     missing = [s for s in requested_sources if s not in all_sources]
@@ -267,7 +267,7 @@ def search(args) -> dict[str, Any]:
     capabilities_by_provider = provider_capabilities(source_specs)
     disabled = [s.id for s in source_specs if not s.enabled]
     if disabled and not args.allow_disabled_sources:
-        raise PipelineError(f"Disabled providers: {disabled}. Enable them in the relevant registry.json or pass --allow-disabled-sources for adapter development.")
+        raise PipelineError(f"Disabled providers: {disabled}. Enable them in managed_sources/sources.json or pass --allow-disabled-sources for adapter development.")
 
     return_count = int(args.return_count or defaults.get("return_count", 5))
     if return_count < 1:

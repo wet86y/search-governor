@@ -10,9 +10,19 @@ const PLUGIN_ID = "openclaw-search-governor-websearch";
 const DEFAULT_COUNT = 5;
 const MAX_COUNT = 10;
 const MAX_WAIT_MS = 15000;
-const SKILL_ROOT = path.resolve(__dirname, "..", "..");
-const SG_BIN = path.join(SKILL_ROOT, "bin", "sg");
-const RUNS_DIR = path.join(SKILL_ROOT, "data", "runs");
+const APP_ROOT = path.resolve(__dirname, "..", "..");
+
+function defaultRuntimeRoot(appRoot) {
+  const releasesDir = path.dirname(appRoot);
+  if (path.basename(releasesDir) === "releases") {
+    return path.join(path.dirname(releasesDir), "runtime");
+  }
+  return appRoot;
+}
+
+const RUNTIME_ROOT = path.resolve(process.env.SG_RUNTIME_HOME || process.env.SG_HOME || defaultRuntimeRoot(APP_ROOT));
+const SG_BIN = path.resolve(process.env.SG_BIN || path.join(APP_ROOT, "bin", "sg"));
+const RUNS_DIR = path.join(RUNTIME_ROOT, "data", "runs");
 
 function readStringParam(args, key) {
   const value = args?.[key];
@@ -181,9 +191,12 @@ function sleep(ms) {
 function runSearchGovernorCommand(args, signal) {
   return new Promise((resolve, reject) => {
     const child = spawn(SG_BIN, args, {
-      cwd: SKILL_ROOT,
+      cwd: APP_ROOT,
       env: {
         ...process.env,
+        SG_APP_HOME: APP_ROOT,
+        SG_RUNTIME_HOME: RUNTIME_ROOT,
+        SG_HOME: RUNTIME_ROOT,
         PYTHONUNBUFFERED: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],

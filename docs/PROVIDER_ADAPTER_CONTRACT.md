@@ -2,7 +2,7 @@
 
 ## Registration
 
-Providers are never auto-discovered. A provider participates only when it appears in either the tracked `providers/registry.json` or ignored `providers.local/registry.json`.
+Providers are never auto-discovered. Production has one runtime namespace and one registry: a provider participates only when it appears in the operator-owned `managed_sources/sources.json`. The tracked `examples/managed_sources/` tree is contract documentation and test input, not a second runtime registry.
 
 Each registry item contains:
 
@@ -56,7 +56,7 @@ A manifest may declare `capabilities.native_fetch` with an adapter entrypoint. I
 ## Validation
 
 ```bash
-python3 scripts/validate_source.py providers/example/source.json
-sg search "contract test" --providers mock --allow-disabled-sources \
+python3 scripts/validate_source.py examples/managed_sources/mock/source.json
+SG_SOURCES_DIR=examples/managed_sources sg search "contract test" --providers mock --allow-disabled-sources \
   --allow-rule-fallback --no-fetch --format json
 ```

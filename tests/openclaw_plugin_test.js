@@ -24,5 +24,8 @@ assert.deepStrictEqual(
 );
 assert.match(pluginSource, /"--mode",\s*"fast",\s*"--preset",\s*"speed"/);
 assert.ok(!pluginSource.includes("--provider-total-budget"));
+assert.ok(pluginSource.includes("SG_APP_HOME: APP_ROOT"));
+assert.ok(pluginSource.includes("SG_RUNTIME_HOME: RUNTIME_ROOT"));
+assert.ok(pluginSource.includes('path.join(RUNTIME_ROOT, "data", "runs")'));
 assert.ok(providers[0].createTool().description.includes("speed provider mix"));
 console.log("OpenClaw plugin contract ok");
