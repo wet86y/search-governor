@@ -5,84 +5,77 @@
 [![OpenClaw](https://img.shields.io/badge/Agent-OpenClaw-6C5CE7)](integrations/openclaw/README.md)
 [![License](https://img.shields.io/badge/License-Apache--2.0-green.svg)](LICENSE)
 
-如果你手头上有若干个搜索订阅服务，想尽可能利用上，可以尝试聚合搜索。通过多源搜索、统一去重并排序，获取更高质量的搜索结果；同时，强化的正文抓取与清洗能尽可能减少网页噪声干扰。
+如果你已经订阅了多个搜索服务，并希望充分利用这些资源，可以尝试聚合搜索。它通过多源检索、统一去重与排序，提升结果的覆盖度和质量；同时借助强化的正文抓取与清洗流程，尽可能降低网页噪声对后续阅读和分析的干扰。
 
-Search Governor 不是新的搜索内容供应商，而是位于多个搜索来源之上的治理层。你可以把已有的 Agent web search、搜索 Skill、API、脚本、知识库、浏览器流程或平台爬虫包装成 adapter，交给同一个入口统一调度。
+Search Governor 是一个与搜索供应商解耦的搜索治理引擎。它不提供搜索内容，而是将现有的 Agent web search、搜索 Skill、API、脚本、知识库、浏览器流程或平台爬虫接入同一条处理管线，并通过唯一的搜索入口统一调度。
 
-```text
-一个搜索入口 + 多个自有来源 + 一条可审计治理管线
-```
+## 核心能力
 
-## 它能做什么
+- **聚合既有搜索资源**：通过手工注册的 adapter 统一管理不同订阅服务和本地来源。
+- **规范化与去重**：统一候选数据结构，规范化 URL，并合并 URL 相同或标题高度相似的结果。
+- **预算化检索**：由搜索模式确定总预算和处理等级，由搜索模板确定来源、权重及预算分配。
+- **可选模型增强**：无模型时使用规则排序；配置兼容模型后，可启用语义重排、正文重排和信源质量评估。
+- **正文获取与清洗**：支持内联正文、原生抓取、直接 HTTP 和受控浏览器回退，并清理常见页面噪声及正文重复行。
+- **可审计运行记录**：保存候选、去重、排序、抓取状态、模型报告和最终输出，便于复核与排错。
+- **Agent 集成**：提供通用集成契约；当前已实现并验证 OpenClaw 插件与 Agent Skill。
 
-- **充分利用已有订阅**：把不同服务放进同一个手工注册表，不必在多个工具之间反复切换。
-- **统一候选结果**：所有 adapter 输出同一种 Candidate JSONL，供应商差异不会泄漏到上层工作流。
-- **搜索结果去重**：规范化 URL，并合并相同 URL 或高度相似标题的候选结果。
-- **预算化多源搜索**：搜索模式决定总预算，搜索模板决定供应商集合、权重和预算分配。
-- **规则或模型重排**：无模型时仍可规则排序；配置兼容模型后可进行语义重排、正文重排和信源评估。
-- **强化正文处理**：依次尝试供应商内联正文、原生抓取、直接 HTTP，以及受控的浏览器回退。
-- **降低网页噪声**：清理导航、脚本、样式及重复行等干扰内容，为后续阅读和分析保留更干净的正文。
-- **保留运行证据**：候选、去重、排序、抓取状态、模型报告和最终输出均可写入独立 run 目录。
-- **接入 Agent**：项目包含 Agent 插件注册层；目前已实现并验证 OpenClaw，其他 Agent 可按相同契约扩展。
+> 当前去重范围包括候选 URL、相似标题和单篇正文内部的重复行。跨文档正文指纹去重尚未实现。
 
-> 当前去重分为候选 URL/相似标题去重，以及单篇正文内部的重复行清理。跨文档正文指纹去重尚未实现。
+## 搜索模式
 
-## 三档搜索模式
+三档模式分别面向快速查询、完整检索和深度研究，差异不仅在于结果数量，也包括正文处理与分析等级。
 
-模式不是简单的“搜索更多或更少”，而是对应三种不同的工作方式。
-
-| 模式 | 适用情况 | 默认行为 |
+| 模式 | 适用场景 | 默认策略 |
 |---|---|---|
-| `fast` | 普通网页查询、快速事实核对、只需要少量链接 | 总搜索预算 15，返回 5 条；先完成多源搜索、去重和排序，再异步抓取可展开结果的正文，Agent 可通过 status/read 稍后读取清洗后的内容 |
-| `full` | 要求全面、多来源、对比、全文或证据导向的检索 | 总搜索预算 40，默认返回 8 条；同步扩展正文、清洗内容、执行正文重排，并在模型可用时评估信源质量 |
-| `deep` | 明确要求深度研究、研究报告或带来源的证据文章 | 包含完整的 full 管线，再根据 point question、goal、boundaries、output use 四项研究简报生成文章级输出 |
+| `fast` | 普通网页查询、快速事实核对、获取少量参考链接 | 总搜索预算 15，返回 5 条；完成多源检索、去重和排序后优先返回摘要，并在后台异步抓取可展开结果的正文 |
+| `full` | 全面检索、多来源对比、全文阅读或证据整理 | 总搜索预算 40，默认返回 8 条；同步获取并清洗正文，执行正文重排，并在模型可用时评估信源质量 |
+| `deep` | 深度研究、研究报告或带来源的证据文章 | 执行完整的 `full` 管线，并依据研究问题、目标、边界和输出用途生成文章级分析结果 |
 
-`deep` 缺少分析模型时默认报告能力缺失，不会悄悄伪装成完整研究。只有用户明确允许时，才会降级为带醒目标记的确定性证据提纲。
+`deep` 需要可用的分析模型。能力缺失时，Search Governor 默认明确报错；只有在调用方显式允许后，才会降级为带标记的确定性证据提纲。
 
-## 工作原理
+## 处理流程
 
 ```mermaid
 flowchart LR
     A["sg search / Agent web_search"] --> B["模式策略<br/>fast · full · deep"]
-    B --> C["搜索模板<br/>来源 · 权重 · 分配"]
+    B --> C["搜索模板<br/>来源 · 权重 · 预算分配"]
     C --> D["手工注册的 adapters"]
     D --> E["Candidate JSONL"]
     E --> F["规范化与候选去重"]
     F --> G["规则或语义重排"]
     G --> H{"正文处理等级"}
-    H -->|fast| I["先返回摘要<br/>后台异步抓取"]
+    H -->|fast| I["摘要优先返回<br/>正文异步抓取"]
     H -->|full| J["同步正文 · 清洗<br/>正文重排 · 信源评估"]
-    H -->|deep| K["完整证据管线<br/>文章级分析输出"]
+    H -->|deep| K["完整证据管线<br/>文章级分析"]
 ```
 
-对外只有一个搜索入口：CLI 使用 `sg search`，Agent 使用注册后的同一个 Search Governor 搜索工具。`search_governor_status` 与 `search_governor_read` 只是 fast 搜索后的正文状态和读取接口，不是第二个搜索入口。
+CLI 使用 `sg search`，Agent 使用注册后的 Search Governor 搜索工具。OpenClaw 集成提供的 `search_governor_status` 和 `search_governor_read` 仅用于查询 fast 正文状态和读取缓存内容，不构成额外的搜索入口。
 
-## 供应商 adapter 契约
+## Adapter 协议
 
-每个来源都由 manifest 和子进程 adapter 构成：
+每个来源由 manifest 和子进程 adapter 组成：
 
 1. Search Governor 向 adapter 的 stdin 写入一个请求 JSON。
-2. adapter 向 stdout 输出一行一个 Candidate JSON。
-3. stderr 只用于诊断信息和 `SG_REPORT_JSON=` 结构化执行报告。
-4. Candidate 至少包含 `title` 和 `url`，还可提供 `snippet`、`provider`、`rank`、`published_at`、`language`、`content_kind`、`raw_score` 与 `extra`。
+2. adapter 向 stdout 输出 Candidate JSONL。
+3. stderr 仅用于诊断信息及 `SG_REPORT_JSON=` 结构化执行报告。
+4. Candidate 至少包含 `title` 和 `url`，也可提供 `snippet`、`provider`、`rank`、`published_at`、`language`、`content_kind`、`raw_score` 和 `extra`。
 
-完整规范见 [Provider Adapter Contract](docs/PROVIDER_ADAPTER_CONTRACT.md)。Search Governor 只运行中央注册表明确启用的来源，不会自动扫描和执行陌生目录，也禁止把自身注册为内部来源造成递归。
+Search Governor 只执行中央注册表中明确启用的来源，不自动扫描陌生目录；重复 ID、未知模板来源、缺失依赖和递归注册都会被明确拒绝。完整规范见 [Provider Adapter Contract](docs/PROVIDER_ADAPTER_CONTRACT.md)。
 
-## 正文抓取与清洗
+## 正文处理
 
-正文获取遵循明确的回退顺序：
+正文获取遵循固定的回退顺序：
 
-1. 优先使用供应商声明的内联正文或 native fetch。
-2. 对允许外部抓取的结果使用 Search Governor 直接 HTTP。
-3. 只有 `blocked`、`rate_limited`、`empty` 等声明允许的失败类型才进入浏览器回退。
-4. DNS 失败、连接拒绝、重置或普通超时不会盲目启动浏览器。
-5. 正文经过 HTML 提取、噪声过滤、长度控制和重复行清理后写入缓存。
+1. 使用供应商声明的内联正文或 native fetch。
+2. 对允许外部抓取的 URL 执行直接 HTTP 请求。
+3. 仅在 `blocked`、`rate_limited` 或 `empty` 等允许的失败类型下调用浏览器回退。
+4. 对获取到的正文执行 HTML 提取、噪声过滤、长度控制和重复行清理，并写入缓存。
 
-fast 默认采用 summary-first：搜索结果可以先交给 Agent，正文抓取在独立后台进程中继续。调用方可通过 run ID、结果序号、cache key 或 URL 查询状态并读取清洗后的正文。
+DNS 失败、连接拒绝、连接重置或普通超时不会触发浏览器回退。验证码、反爬验证和强制登录以 `auth_required` 返回，由调用方决定是否完成验证后重试。
 
-## 快速开始
+## 安装
 
-正式支持 Python 3.12、Linux 和 WSL。原生 Windows 与 macOS 尚未认证。
+项目正式支持 Python 3.12、Linux 和 WSL。原生 Windows 与 macOS 尚未认证。
 
 ```bash
 mkdir -p ~/projects
@@ -92,9 +85,9 @@ bash scripts/install.sh
 sg health
 ```
 
-安装脚本从已提交的 Git tree 生成不可变 release，在 release 内建立虚拟环境，并创建稳定的 `~/.local/bin/sg` 包装器。开发仓库不会直接充当生产运行目录。
+安装脚本从已提交的 Git tree 生成不可变 release，在 release 内创建虚拟环境，并安装稳定的 `~/.local/bin/sg` 包装器。开发仓库与可变运行资产相互独立。
 
-项目不附带真实搜索供应商。公开仓库仅提供不会被生产环境自动扫描的 mock adapter，用于验证协议：
+公开仓库不附带真实搜索供应商，只提供不会被生产环境自动扫描的 mock adapter，用于验证协议：
 
 ```bash
 SG_SOURCES_DIR=examples/managed_sources \
@@ -106,12 +99,12 @@ SG_SOURCES_DIR=examples/managed_sources \
   --format json
 ```
 
-## 注册自己的搜索来源
+## 注册搜索来源
 
-1. 在 `~/.local/share/search-governor/runtime/managed_sources/<provider-id>/` 放置 `source.json` 与 adapter。
-2. 在唯一的 `runtime/managed_sources/sources.json` 中登记 ID、manifest 路径和启用状态。
-3. 在 `runtime/config/provider_presets.local.json` 中配置本地模板与权重。
-4. 运行 `sg health`，确认入口、依赖、环境变量和能力声明一致。
+1. 在 `~/.local/share/search-governor/runtime/managed_sources/<provider-id>/` 放置 `source.json` 和 adapter。
+2. 在 `runtime/managed_sources/sources.json` 中登记 ID、manifest 路径和启用状态。
+3. 在 `runtime/config/provider_presets.local.json` 中配置本地搜索模板与权重。
+4. 运行 `sg health`，检查入口、依赖、环境变量和能力声明。
 
 ```json
 {
@@ -125,7 +118,7 @@ SG_SOURCES_DIR=examples/managed_sources \
 }
 ```
 
-然后通过同一个入口选择模式：
+## 使用
 
 ```bash
 sg search "query" --mode fast
@@ -137,15 +130,11 @@ sg search "query" --mode deep \
   --output-use "How the evidence will be used"
 ```
 
+fast 在没有模型配置时仍可使用规则排序。语义重排、信源评估和 deep 分析通过本地配置及兼容模型端点启用，公开配置不绑定具体模型厂商。
+
 ## OpenClaw 集成
 
-OpenClaw 是当前唯一完成实现和生产验证的 Agent 集成。插件注册：
-
-- `web_search` provider：`search-governor`
-- 正文状态工具：`search_governor_status`
-- 正文读取工具：`search_governor_read`
-
-普通快速查询走插件暴露的 fast；full/deep 由完整 Agent Skill 根据用户意图调用同一个 `sg search`。插件不会覆盖 OpenClaw 原生 `web_fetch`。
+OpenClaw 是当前唯一完成实现和验证的 Agent 集成。插件注册一个 `web_search` provider `search-governor`，以及 fast 正文的状态和读取工具；完整 Agent Skill 负责根据用户意图路由 full 和 deep 请求。集成不会覆盖 OpenClaw 原生 `web_fetch`。
 
 ```bash
 openclaw plugins install --link \
@@ -157,49 +146,31 @@ python3 ~/.local/share/search-governor/current/scripts/build_openclaw_skill.py \
   --sg-bin ~/.local/bin/sg
 ```
 
-完整安装和 Skill 路由说明见 [OpenClaw Integration](integrations/openclaw/README.md)。架构允许继续实现其他 Agent integration，但 v0.1.1 尚未声称这些插件已经过验证。
+安装与路由说明见 [OpenClaw Integration](integrations/openclaw/README.md)。其他 Agent 可以基于同一 integration contract 扩展，但 v0.1.1 尚未提供经过验证的实现。
 
-## 开发与运行目录
+## 本地目录
 
 ```text
 ~/projects/search-governor/                     Git 开发仓库
 
 ~/.local/share/search-governor/                 稳定安装与运行资产
-  releases/<version>-<commit>/                  Git tree 生成的不可变发行快照
+  releases/<version>-<commit>/                  不可变发行快照
   current -> releases/<version>-<commit>/       当前发行指针
   runtime/
     config/                                     本地配置与密钥
     managed_sources/                            真实供应商注册表和 adapters
     connectors/                                 私有平台连接器
     integrations/openclaw/local/                本地 Agent 路由扩展
-    data/                                       缓存、日志、run 与 staging
+    data/                                       缓存、日志、运行记录与生成暂存区
   backups/                                      本地回滚资料
   install-state.json                            当前安装记录
 
 ~/.local/bin/sg                                 稳定 CLI 包装器
 ```
 
-`SG_APP_HOME` 指向不可变代码，`SG_RUNTIME_HOME` 指向可变运行资产；`SG_HOME` 仅作为旧调用方兼容的 runtime 别名。`.env`、真实 adapter、Cookie、浏览器 profile、运行记录、缓存及平台爬虫数据不会进入 Git 或源码发行包。
+`SG_APP_HOME` 指向不可变代码，`SG_RUNTIME_HOME` 指向可变运行资产；`SG_HOME` 仅作为旧调用方兼容的 runtime 别名。
 
-## 项目状态
-
-| 能力 | v0.1.1 |
-|---|---|
-| CLI 与统一 adapter 协议 | 已支持 |
-| 手工供应商注册与健康检查 | 已支持 |
-| fast / full / deep | 已支持 |
-| fast 异步正文抓取与读取 | 已支持 |
-| 规则排序与兼容模型重排 | 已支持 |
-| OpenClaw 插件与 Agent Skill | 已支持并验证 |
-| 其他 Agent 插件 | 架构可扩展，尚未验证 |
-| 跨文档正文指纹去重 | 尚未实现 |
-
-## 安全与发布边界
-
-- 公开 release 必须从 Git tree 生成，禁止直接压缩本地部署目录。
-- 未注册目录不参与搜索；重复 ID、未知模板来源和缺失依赖会明确报错。
-- adapter 诊断、Cookie 和本地凭据不得成为搜索结果内容。
-- CAPTCHA、强制登录和反爬验证以 `auth_required` 明确返回，不静默切换搜索来源。
+本地密钥、真实 adapter、Cookie、浏览器 profile、运行记录、缓存和平台爬虫数据不会进入 Git 或源码发行包。公开发行内容必须从 Git tree 生成，禁止直接打包本地部署目录。
 
 ## License
 
