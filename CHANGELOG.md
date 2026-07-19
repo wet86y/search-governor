@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Redesign the project homepage around multi-source governance, the three search modes, body processing, and Agent integration.
+- Fix split-layout path resolution for fast deferred body fetching and the relative OpenClaw browser fallback script.
+- Add regression coverage proving release-owned helper scripts remain separate from persistent runtime data.
+
 ## 0.1.1
 
 - Restore the OpenClaw fast compatibility policy: fast budget 15 with the operator-defined `speed` preset.

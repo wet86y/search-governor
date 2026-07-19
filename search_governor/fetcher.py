@@ -12,10 +12,17 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse, quote, urlsplit, urlunsplit
 from .models import Candidate
-from .paths import home
+from .paths import app_home
 
 
 BROWSER_FALLBACK_ERROR_KINDS = {"blocked", "rate_limited", "empty"}
+
+
+def resolve_browser_fallback_script(script_value: str) -> Path:
+    script = Path(script_value).expanduser() if script_value else Path()
+    if script_value and not script.is_absolute():
+        script = app_home() / script
+    return script
 
 
 class TextHTMLParser(HTMLParser):
@@ -232,9 +239,7 @@ def browser_fallback_allowed(error_kind: str | None, cfg: dict) -> bool:
 
 def fetch_with_browser_fallback(c: Candidate, cfg: dict, direct_error: str, error_kind: str | None) -> Candidate:
     script_value = str(cfg.get("browser_fallback_script") or "").strip()
-    script = Path(script_value).expanduser() if script_value else Path()
-    if script_value and not script.is_absolute():
-        script = home() / script
+    script = resolve_browser_fallback_script(script_value)
     c.extra["direct_fetch_error"] = direct_error
     if error_kind:
         c.extra["fetch_error_kind"] = error_kind

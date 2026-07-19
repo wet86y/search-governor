@@ -5,9 +5,12 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from search_governor.config import load_config
+from search_governor.fetcher import resolve_browser_fallback_script
 from search_governor.paths import app_config_dir, app_home, config_dir, data_dir, runtime_home, sources_dir
+from search_governor.pipeline import start_deferred_fetch
 
 
 class SplitPathTests(unittest.TestCase):
@@ -53,6 +56,29 @@ class SplitPathTests(unittest.TestCase):
         self.assertEqual(
             {"enabled": True, "nested": {"public": 1, "value": "local"}},
             load_config("demo"),
+        )
+
+    def test_deferred_fetch_uses_release_script_and_runtime_run_dir(self) -> None:
+        script = self.app / "scripts" / "fetch_background.py"
+        script.parent.mkdir(parents=True)
+        script.write_text("# fixture\n", encoding="utf-8")
+        run_dir = self.runtime / "data" / "runs" / "fixture"
+        run_dir.mkdir(parents=True)
+
+        with patch("search_governor.pipeline.subprocess.Popen") as popen:
+            popen.return_value.pid = 4321
+            report = start_deferred_fetch(run_dir, 5)
+
+        command = popen.call_args.args[0]
+        self.assertEqual(str(script), command[1])
+        self.assertEqual(str(run_dir), command[3])
+        self.assertEqual(str(self.app), popen.call_args.kwargs["cwd"])
+        self.assertEqual({"started": True, "pid": 4321, "script": str(script)}, report)
+
+    def test_relative_browser_fallback_uses_release_root(self) -> None:
+        self.assertEqual(
+            self.app / "integrations" / "openclaw" / "browser_fetch.py",
+            resolve_browser_fallback_script("integrations/openclaw/browser_fetch.py"),
         )
 
 

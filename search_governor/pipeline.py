@@ -25,8 +25,7 @@ from .deep_analyzer import (
 )
 from .reporter import agent_candidate_result, agent_pipeline_summary, evidence_markdown, write_jsonl
 from .gc import cleanup
-from .paths import data_dir
-from .paths import home
+from .paths import app_home, data_dir
 
 
 class PipelineError(RuntimeError):
@@ -136,7 +135,8 @@ def new_run_id() -> str:
 
 
 def start_deferred_fetch(run_dir: Path, return_count: int) -> dict[str, Any]:
-    script = home() / "scripts" / "fetch_background.py"
+    application_root = app_home()
+    script = application_root / "scripts" / "fetch_background.py"
     if not script.exists():
         return {"started": False, "error": f"missing script: {script}"}
     log = run_dir / "deferred_fetch.spawn.log"
@@ -144,7 +144,7 @@ def start_deferred_fetch(run_dir: Path, return_count: int) -> dict[str, Any]:
     with log.open("ab") as stdout, err.open("ab") as stderr:
         proc = subprocess.Popen(
             [sys.executable, str(script), "--run-dir", str(run_dir), "--return-count", str(return_count)],
-            cwd=str(home()),
+            cwd=str(application_root),
             stdout=stdout,
             stderr=stderr,
             start_new_session=True,
