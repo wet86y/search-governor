@@ -4,4 +4,4 @@ Do not report credentials through public issues. Report suspected credential exp
 
 Provider credentials belong in `config/.env` or provider-specific local secret stores. Browser profiles, cookies, run data, local adapters, and model overrides must remain in ignored paths.
 
-Before every release, run `scripts/check-public-tree.sh` and build the release archive only with `scripts/export_bundle.sh`.
+Before every source push or local release, run `scripts/check.sh`. The public-tree check included there verifies that tracked source does not contain private runtime data or credential material. GitHub is source-only and does not receive release archives or other uploaded assets.

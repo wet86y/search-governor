@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Align remote publication with Personal KB Toolkit: GitHub remains a source-only `main` branch without version tags, GitHub Releases, or uploaded assets; immutable runtime releases remain local.
+- Align remote publication with Personal KB Toolkit: GitHub remains a source-only `main` branch without version tags, GitHub Releases, uploaded assets, or an archive-building CI step; immutable runtime releases remain local.
 
 ## 0.1.3
 
