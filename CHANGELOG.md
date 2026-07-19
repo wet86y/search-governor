@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.3
+
+- Add a one-command local release workflow that validates a clean committed `HEAD`, runs the full checks, generates the private-extended OpenClaw Skill, atomically switches `current`, restarts the Gateway, and verifies the stable CLI and plugin load.
+- Use the system Python 3.12 runtime directly for dependency-free releases instead of duplicating a virtual environment inside every immutable release.
+- Keep local release retention idempotent so redeploying the same `HEAD` preserves the existing rollback target.
+- Keep local release retention independent from GitHub Release history; the local publisher performs no remote Git or GitHub operations.
+
 ## 0.1.2
 
 - Block private, local, reserved, and otherwise unsafe body-fetch targets, including DNS results and HTTP redirect destinations, without browser fallback.

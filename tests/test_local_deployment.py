@@ -56,7 +56,7 @@ class LocalReleaseDeploymentTests(unittest.TestCase):
             (releases / "previous-release").mkdir()
             (install_root / "current").symlink_to(Path("releases") / "previous-release")
 
-            state = deploy(ROOT, install_root, "HEAD", bin_dir, skip_venv=True)
+            state = deploy(ROOT, install_root, "HEAD", bin_dir)
 
             current = install_root / "current"
             release = install_root / "releases" / state["release_id"]
@@ -64,12 +64,18 @@ class LocalReleaseDeploymentTests(unittest.TestCase):
             self.assertEqual(Path("releases") / state["release_id"], Path(current.readlink()))
             self.assertTrue((release / "search_governor" / "cli.py").is_file())
             self.assertFalse((release / ".git").exists())
+            self.assertFalse((release / ".venv").exists())
             self.assertFalse((release / "managed_sources").exists())
             self.assertTrue((install_root / "runtime" / "managed_sources").is_dir())
             self.assertIn("/current/bin/sg", (bin_dir / "sg").read_text(encoding="utf-8"))
             self.assertEqual(["oldest-release"], state["pruned_releases"])
             self.assertEqual({state["release_id"], "previous-release"}, {path.name for path in releases.iterdir()})
             self.assertEqual(state, json.loads((install_root / "install-state.json").read_text(encoding="utf-8")))
+
+            repeated = deploy(ROOT, install_root, "HEAD", bin_dir)
+            self.assertEqual("releases/previous-release", repeated["previous_current"])
+            self.assertEqual([], repeated["pruned_releases"])
+            self.assertEqual({state["release_id"], "previous-release"}, {path.name for path in releases.iterdir()})
 
 
 if __name__ == "__main__":

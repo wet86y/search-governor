@@ -88,7 +88,7 @@ bash scripts/install.sh
 sg health
 ```
 
-安装脚本从已提交的 Git tree 生成不可变 release，在 release 内创建虚拟环境，并安装稳定的 `~/.local/bin/sg` 包装器。开发仓库与可变运行资产相互独立。
+安装脚本从已提交的 Git tree 生成不可变 release，并安装稳定的 `~/.local/bin/sg` 包装器。项目当前没有第三方运行时依赖，release 直接使用 WSL 的系统 Python 3.12，不再为每个版本复制虚拟环境。开发仓库与可变运行资产相互独立。
 
 公开仓库不附带真实搜索供应商，只提供不会被生产环境自动扫描的 mock adapter，用于验证协议：
 
@@ -151,7 +151,15 @@ python3 ~/.local/share/search-governor/current/scripts/build_openclaw_skill.py \
 
 插件只需通过上述稳定 `current` 路径注册一次。后续本地发布切换 `current` 后，重启并验证 OpenClaw Gateway 已加载新版本即可，不需要重新注册插件，也不要把公开插件代码复制到 `runtime`。
 
-安装与路由说明见 [OpenClaw Integration](integrations/openclaw/README.md)。其他 Agent 可以基于同一 integration contract 扩展，但 v0.1.2 尚未提供经过验证的实现。
+安装与路由说明见 [OpenClaw Integration](integrations/openclaw/README.md)。其他 Agent 可以基于同一 integration contract 扩展，但 v0.1.3 尚未提供经过验证的实现。
+
+完成开发并提交后，可用一个本地命令完成检查、发布和 OpenClaw 切换：
+
+```bash
+python3 scripts/publish_local_release.py --source-root "$PWD"
+```
+
+该脚本要求工作树干净，从已提交的 `HEAD` 运行完整检查并构建 release；未提交内容不会进入发行版。它会验证系统 Python 3.12 和依赖声明，应用 `runtime/integrations/openclaw/local/skill-routes.md` 私有扩展来生成并原子部署 Skill，更新 `current`，只保留当前与上一个本地 release，重启 Gateway，并确认稳定 CLI 与插件加载成功。脚本不会创建 tag、推送提交或调用 GitHub。
 
 ## 本地目录
 
@@ -176,8 +184,6 @@ python3 ~/.local/share/search-governor/current/scripts/build_openclaw_skill.py \
 `SG_APP_HOME` 指向不可变代码，`SG_RUNTIME_HOME` 指向可变运行资产；`SG_HOME` 仅作为旧调用方兼容的 runtime 别名。
 
 每次本地部署会保留当前 release 与切换前的上一个 release，并删除更旧的本地快照；被清理版本仍可由 Git tag 或提交重新生成。
-
-远程发布同样只保留最新和上一个 GitHub Release 对象；新版本创建并验证后删除更旧的 Release，但保留历史 Git tag 以便审计和复现。
 
 本地密钥、真实 adapter、Cookie、浏览器 profile、运行记录、缓存和平台爬虫数据不会进入 Git 或源码发行包。公开发行内容必须从 Git tree 生成，禁止直接打包本地部署目录。
 

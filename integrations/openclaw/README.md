@@ -1,6 +1,6 @@
 # OpenClaw Integration
 
-This is the only Agent integration implemented and verified in Search Governor v0.1.2. It registers:
+This is the only Agent integration implemented and verified in Search Governor v0.1.3. It registers:
 
 - web search provider `search-governor`
 - tool `search_governor_status`
@@ -20,6 +20,8 @@ openclaw infer web search --provider search-governor --query "Search Governor" -
 ```
 
 Register the plugin through the stable `current` path once. After a local release switches `current`, restart the OpenClaw Gateway and inspect the loaded runtime; do not reinstall the plugin or copy release-owned plugin code into `runtime`.
+
+For routine local publishing, use `scripts/publish_local_release.py` from a clean, committed checkout. It builds the immutable release from `HEAD`, regenerates and atomically deploys this Skill with the private local extension, switches `current`, restarts the Gateway, and verifies that this plugin loaded. It does not create tags, push commits, or call GitHub.
 
 ```bash
 python3 ~/.local/share/search-governor/current/scripts/build_openclaw_skill.py \

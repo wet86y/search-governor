@@ -98,7 +98,7 @@ def prune_releases(releases: Path, current_release: Path, previous_current: str 
     return removed
 
 
-def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv: bool = False) -> dict:
+def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path) -> dict:
     source = source.expanduser().resolve()
     install_root = install_root.expanduser().resolve()
     commit = git_text(source, "rev-parse", f"{ref}^{{commit}}")
@@ -123,13 +123,6 @@ def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv:
     if not release_dir.exists():
         extract_archive(source, ref, release_dir)
         try:
-            if not skip_venv:
-                subprocess.run(["python3", "-m", "venv", str(release_dir / ".venv")], check=True)
-                subprocess.run(
-                    [str(release_dir / ".venv" / "bin" / "python"), "-m", "pip", "install", "--no-deps", "."],
-                    cwd=release_dir,
-                    check=True,
-                )
             (release_dir / "DEPLOYED_COMMIT").write_text(commit + "\n", encoding="utf-8")
         except Exception:
             subprocess.run(["find", str(release_dir), "-depth", "-delete"], check=False)
@@ -142,7 +135,11 @@ def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv:
         env_file.write_text((release_dir / "config" / ".env.example").read_text(encoding="utf-8"), encoding="utf-8")
         env_file.chmod(0o600)
 
+    state_path = install_root / "install-state.json"
+    prior_state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.is_file() else {}
     previous = switch_current(install_root, release_dir)
+    if previous == str(Path("releases") / release_dir.name):
+        previous = prior_state.get("previous_current") or None
     pruned_releases = prune_releases(releases, release_dir, previous)
     wrapper = install_wrapper(install_root, bin_dir.expanduser().resolve())
     state = {
@@ -158,7 +155,7 @@ def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv:
         "wrapper": str(wrapper),
         "installed_at": datetime.now().isoformat(timespec="seconds"),
     }
-    atomic_json(install_root / "install-state.json", state)
+    atomic_json(state_path, state)
     return state
 
 
@@ -169,9 +166,8 @@ def main() -> int:
     parser.add_argument("--install-root", type=Path, default=Path.home() / ".local" / "share" / "search-governor")
     parser.add_argument("--ref", default="HEAD")
     parser.add_argument("--bin-dir", type=Path, default=Path.home() / ".local" / "bin")
-    parser.add_argument("--skip-venv", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    print(json.dumps(deploy(args.source_root, args.install_root, args.ref, args.bin_dir, args.skip_venv), ensure_ascii=False, indent=2))
+    print(json.dumps(deploy(args.source_root, args.install_root, args.ref, args.bin_dir), ensure_ascii=False, indent=2))
     return 0
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@search-governor/openclaw-integration",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "OpenClaw web_search provider and async body-read tools backed by Search Governor.",
   "main": "./index.js",
   "engines": {

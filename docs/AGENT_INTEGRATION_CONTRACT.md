@@ -11,4 +11,4 @@ An integration must:
 5. Surface configuration, authentication, and no-provider errors without silently falling back to an ungoverned search path.
 6. Never register Search Governor as one of its own upstream providers.
 
-OpenClaw is the only integration implemented and verified in v0.1.2. Other Agent runtimes may implement the same contract later.
+OpenClaw is the only integration implemented and verified in v0.1.3. Other Agent runtimes may implement the same contract later.
