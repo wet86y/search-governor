@@ -21,15 +21,14 @@ class RegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        (self.root / "providers" / "demo").mkdir(parents=True)
-        (self.root / "providers.local").mkdir()
-        (self.root / "providers" / "demo" / "source.json").write_text(json.dumps(MANIFEST), encoding="utf-8")
-        (self.root / "providers" / "registry.json").write_text(
+        (self.root / "managed_sources" / "demo").mkdir(parents=True)
+        (self.root / "managed_sources" / "demo" / "source.json").write_text(json.dumps(MANIFEST), encoding="utf-8")
+        (self.root / "managed_sources" / "sources.json").write_text(
             json.dumps({"sources": [{"id": "demo", "path": "demo/source.json", "enabled": True}]}),
             encoding="utf-8",
         )
         self.previous = os.environ.get("SG_HOME")
-        self.previous_disable_local = os.environ.pop("SEARCH_GOVERNOR_DISABLE_LOCAL", None)
+        self.previous_sources_dir = os.environ.pop("SG_SOURCES_DIR", None)
         os.environ["SG_HOME"] = str(self.root)
 
     def tearDown(self) -> None:
@@ -37,8 +36,8 @@ class RegistryTests(unittest.TestCase):
             os.environ.pop("SG_HOME", None)
         else:
             os.environ["SG_HOME"] = self.previous
-        if self.previous_disable_local is not None:
-            os.environ["SEARCH_GOVERNOR_DISABLE_LOCAL"] = self.previous_disable_local
+        if self.previous_sources_dir is not None:
+            os.environ["SG_SOURCES_DIR"] = self.previous_sources_dir
         self.tmp.cleanup()
 
     def test_manual_registry_loads(self) -> None:
@@ -46,18 +45,34 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(["demo"], list(sources))
         self.assertTrue(sources["demo"].enabled)
 
-    def test_duplicate_across_public_and_local_is_fatal(self) -> None:
-        (self.root / "providers.local" / "demo").mkdir()
-        (self.root / "providers.local" / "demo" / "source.json").write_text(json.dumps(MANIFEST), encoding="utf-8")
-        (self.root / "providers.local" / "registry.json").write_text(
-            json.dumps({"sources": [{"id": "demo", "path": "demo/source.json", "enabled": True}]}),
-            encoding="utf-8",
-        )
+    def test_example_tree_is_not_scanned_as_runtime(self) -> None:
+        example_root = self.root / "examples" / "managed_sources"
+        example_root.parent.mkdir(parents=True)
+        (self.root / "managed_sources").rename(example_root)
+        self.assertEqual({}, load_sources())
+
+    def test_explicit_sources_dir_can_run_isolated_contract_examples(self) -> None:
+        previous = os.environ.get("SG_SOURCES_DIR")
+        os.environ["SG_SOURCES_DIR"] = str(self.root / "managed_sources")
+        try:
+            self.assertEqual(["demo"], list(load_sources()))
+        finally:
+            if previous is None:
+                os.environ.pop("SG_SOURCES_DIR", None)
+            else:
+                os.environ["SG_SOURCES_DIR"] = previous
+
+    def test_duplicate_id_in_single_registry_is_fatal(self) -> None:
+        registry = {"sources": [
+            {"id": "demo", "path": "demo/source.json", "enabled": True},
+            {"id": "demo", "path": "demo/source.json", "enabled": False},
+        ]}
+        (self.root / "managed_sources" / "sources.json").write_text(json.dumps(registry), encoding="utf-8")
         with self.assertRaisesRegex(SourceRegistryError, "Duplicate provider id"):
             load_sources()
 
     def test_registry_path_cannot_escape_root(self) -> None:
-        (self.root / "providers" / "registry.json").write_text(
+        (self.root / "managed_sources" / "sources.json").write_text(
             json.dumps({"sources": [{"id": "demo", "path": "../outside.json", "enabled": True}]}),
             encoding="utf-8",
         )
@@ -66,8 +81,8 @@ class RegistryTests(unittest.TestCase):
 
     def test_recursive_provider_id_is_rejected(self) -> None:
         manifest = dict(MANIFEST, id="search-governor")
-        (self.root / "providers" / "demo" / "source.json").write_text(json.dumps(manifest), encoding="utf-8")
-        (self.root / "providers" / "registry.json").write_text(
+        (self.root / "managed_sources" / "demo" / "source.json").write_text(json.dumps(manifest), encoding="utf-8")
+        (self.root / "managed_sources" / "sources.json").write_text(
             json.dumps({"sources": [{"id": "search-governor", "path": "demo/source.json", "enabled": True}]}),
             encoding="utf-8",
         )

@@ -1,0 +1,5 @@
+{
+  "sources": [
+    {"id": "mock", "path": "mock/source.json", "enabled": false}
+  ]
+}

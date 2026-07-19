@@ -4,10 +4,11 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 cd "$ROOT"
 export SEARCH_GOVERNOR_DISABLE_LOCAL=1
-
-python3 -m compileall -q search_governor providers scripts tests
+python3 -m compileall -q search_governor examples scripts tests
 python3 -m unittest discover -s tests -p 'test_*.py' -v
-python3 scripts/build_openclaw_skill.py --local-extension /dev/null --output-dir build.local/ci-skill >/dev/null
+CI_SKILL_DIR="$(mktemp -d)"
+trap 'find "$CI_SKILL_DIR" -depth -delete' EXIT
+python3 scripts/build_openclaw_skill.py --local-extension /dev/null --output-dir "$CI_SKILL_DIR" >/dev/null
 node --check integrations/openclaw/index.js
 node --check integrations/openclaw/browser_gateway_rpc.mjs
 node tests/openclaw_plugin_test.js

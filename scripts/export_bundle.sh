@@ -10,8 +10,9 @@ mkdir -p "$(dirname "$OUT")"
 "$ROOT/scripts/check-public-tree.sh"
 git -C "$ROOT" archive --format=zip --prefix="search-governor-${VERSION}/" --output="$OUT" HEAD
 entries="$(unzip -Z1 "$OUT")"
-for forbidden_prefix in 'providers.local/' 'integrations.local/' 'build.local/' 'legacy.local/' 'data/' 'connectors/'; do
-  if grep -Fq "/$forbidden_prefix" <<<"$entries"; then
+relative_entries="$(cut -d/ -f2- <<<"$entries")"
+for forbidden_prefix in 'managed_sources/' 'integrations/openclaw/local/' 'providers.local/' 'integrations.local/' 'build.local/' 'legacy.local/' 'data/' 'connectors/'; do
+  if awk -v prefix="$forbidden_prefix" 'index($0, prefix) == 1 { found = 1 } END { exit !found }' <<<"$relative_entries"; then
     echo "Forbidden local path prefix is present in archive: $forbidden_prefix" >&2
     exit 1
   fi

@@ -15,13 +15,11 @@ def config_dir() -> Path:
 
 
 def sources_dir() -> Path:
-    """Public provider definitions shipped by the repository."""
-    return home() / "providers"
-
-
-def local_sources_dir() -> Path:
-    """Operator-owned providers that must never be published."""
-    return home() / "providers.local"
+    """The single operator-owned runtime namespace for registered sources."""
+    env = os.environ.get("SG_SOURCES_DIR")
+    if env:
+        return Path(env).expanduser().resolve()
+    return home() / "managed_sources"
 
 
 def data_dir() -> Path:
