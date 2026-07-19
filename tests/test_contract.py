@@ -48,3 +48,18 @@ class ContractTests(unittest.TestCase):
             self.assertEqual([], candidates)
             self.assertFalse(report["ok"])
             self.assertEqual("timeout after 1s", report["error"])
+
+    def test_all_invalid_jsonl_is_reported_as_provider_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            root.joinpath("adapter.py").write_text("print('not-json')\n", encoding="utf-8")
+            spec = SourceSpec(
+                id="invalid-demo",
+                path=root,
+                config={"entrypoint": "python3 adapter.py", "supports": {}},
+                enabled=True,
+            )
+            candidates, report = collect_from_source(spec, {"query": "invalid contract"})
+            self.assertEqual([], candidates)
+            self.assertFalse(report["ok"])
+            self.assertEqual(1, report["bad_lines"])

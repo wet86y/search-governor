@@ -50,6 +50,11 @@ class LocalReleaseDeploymentTests(unittest.TestCase):
             base = Path(temporary)
             install_root = base / "share" / "search-governor"
             bin_dir = base / "bin"
+            releases = install_root / "releases"
+            releases.mkdir(parents=True)
+            (releases / "oldest-release").mkdir()
+            (releases / "previous-release").mkdir()
+            (install_root / "current").symlink_to(Path("releases") / "previous-release")
 
             state = deploy(ROOT, install_root, "HEAD", bin_dir, skip_venv=True)
 
@@ -62,6 +67,8 @@ class LocalReleaseDeploymentTests(unittest.TestCase):
             self.assertFalse((release / "managed_sources").exists())
             self.assertTrue((install_root / "runtime" / "managed_sources").is_dir())
             self.assertIn("/current/bin/sg", (bin_dir / "sg").read_text(encoding="utf-8"))
+            self.assertEqual(["oldest-release"], state["pruned_releases"])
+            self.assertEqual({state["release_id"], "previous-release"}, {path.name for path in releases.iterdir()})
             self.assertEqual(state, json.loads((install_root / "install-state.json").read_text(encoding="utf-8")))
 
 

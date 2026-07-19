@@ -4,15 +4,21 @@ import re
 import shlex
 import subprocess
 import sys
+import urllib.error
 import urllib.request
-import urllib.error
-import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse, quote, urlsplit, urlunsplit
 from .models import Candidate
 from .paths import app_home
+from .url_safety import (
+    UNSAFE_URL_ERROR_KIND,
+    UnsafeUrlError,
+    UrlResolutionError,
+    build_safe_http_opener,
+    validate_external_http_url,
+)
 
 
 BROWSER_FALLBACK_ERROR_KINDS = {"blocked", "rate_limited", "empty"}
@@ -101,9 +107,10 @@ def _read_url_text(url: str, cfg: dict, headers: dict[str, str] | None = None) -
     req_headers = {"User-Agent": cfg.get("user_agent", "SearchGovernor/0.1")}
     if headers:
         req_headers.update(headers)
+    validate_external_http_url(url)
     encoded_url = _encode_url(url)
     req = urllib.request.Request(encoded_url, headers=req_headers)
-    with urllib.request.urlopen(req, timeout=int(cfg.get("timeout_sec", 20))) as resp:
+    with build_safe_http_opener().open(req, timeout=int(cfg.get("timeout_sec", 20))) as resp:
         raw = resp.read(max(300000, int(cfg.get("max_chars_per_doc", 5000)) * 20))
         content_type = resp.headers.get("Content-Type", "")
     return raw.decode("utf-8", errors="replace"), content_type
@@ -134,13 +141,6 @@ def fetch_one(c: Candidate, cfg: dict) -> Candidate:
         c.fetch_status = "external_fetch_disabled"
         c.fetch_error = "provider does not allow external body fetch"
         return c
-    allowed = set(cfg.get("allowed_schemes", ["http", "https"]))
-    p = urlparse(c.url)
-    if p.scheme not in allowed:
-        c.fetch_status = "failed"
-        c.fetch_error = f"scheme not allowed: {p.scheme}"
-        return c
-
     attempts: list[tuple[str, str]] = []
     github_preferred = _preferred_github_fetch(c.url)
     if github_preferred:
@@ -176,6 +176,15 @@ def fetch_one(c: Candidate, cfg: dict) -> Candidate:
                 break
             last_error = "parsed empty content"
             last_error_kind = "empty"
+        except UnsafeUrlError as e:
+            c.fetch_status = "blocked"
+            c.fetch_error = e.public_message
+            c.extra["fetch_error_kind"] = UNSAFE_URL_ERROR_KIND
+            return c
+        except UrlResolutionError as e:
+            last_error = str(e)[:500]
+            last_error_kind = "unreachable"
+            continue
         except urllib.error.HTTPError as e:
             last_error = f"HTTP {e.code}: {e.reason}"
             if e.code in (401, 403):
@@ -243,6 +252,17 @@ def fetch_with_browser_fallback(c: Candidate, cfg: dict, direct_error: str, erro
     c.extra["direct_fetch_error"] = direct_error
     if error_kind:
         c.extra["fetch_error_kind"] = error_kind
+    try:
+        validate_external_http_url(c.url)
+    except UnsafeUrlError as exc:
+        c.fetch_status = "blocked"
+        c.fetch_error = exc.public_message
+        c.extra["fetch_error_kind"] = UNSAFE_URL_ERROR_KIND
+        c.extra["browser_fallback"] = {"ok": False, "status": "unsafe_url"}
+        return c
+    except UrlResolutionError as exc:
+        c.extra["browser_fallback"] = {"ok": False, "status": "unreachable", "error": str(exc)[:500]}
+        return c
     if not script_value or not script.exists():
         c.extra["browser_fallback"] = {"ok": False, "status": "missing_script", "script": script_value}
         return c
@@ -300,6 +320,18 @@ def fetch_with_browser_fallback(c: Candidate, cfg: dict, direct_error: str, erro
     }
     status = str(payload.get("status") or "")
     if proc.returncode == 0 and payload.get("ok"):
+        final_url = str(payload.get("final_url") or c.url)
+        try:
+            validate_external_http_url(final_url)
+        except UnsafeUrlError as exc:
+            c.fetch_status = "blocked"
+            c.fetch_error = exc.public_message
+            c.extra["fetch_error_kind"] = UNSAFE_URL_ERROR_KIND
+            c.extra["browser_fallback"].update({"ok": False, "status": "unsafe_url"})
+            return c
+        except UrlResolutionError as exc:
+            c.extra["browser_fallback"].update({"ok": False, "status": "unreachable", "error": str(exc)[:500]})
+            return c
         content = str(payload.get("cleaned_text") or "").strip()
         if content:
             c.fetch_status = "ok"

@@ -1,7 +1,7 @@
 {
   "id": "openclaw-search-governor-websearch",
   "name": "Search Governor OpenClaw Integration",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "contracts": {
     "webSearchProviders": [
       "search-governor"

@@ -346,11 +346,12 @@ def search(args) -> dict[str, Any]:
     }
 
     write_stage(run_dir, "collect", "started", sources=requested_sources, provider_counts=provider_counts, per_provider_count=per_provider_count)
-    raw_candidates, source_reports = collect_all(source_specs, params)
+    provider_collection: dict[str, Any] = {}
+    raw_candidates, source_reports = collect_all(source_specs, params, provider_collection)
     if not raw_candidates:
-        write_stage(run_dir, "collect", "failed", source_reports=source_reports)
+        write_stage(run_dir, "collect", "failed", source_reports=source_reports, provider_collection=provider_collection)
         raise PipelineError(f"No candidates collected. Source reports: {source_reports}")
-    write_stage(run_dir, "collect", "ok", count=len(raw_candidates), source_reports=source_reports)
+    write_stage(run_dir, "collect", "ok", count=len(raw_candidates), source_reports=source_reports, provider_collection=provider_collection)
 
     time_params = dict(params)
     time_params["provider_capabilities"] = capabilities_by_provider
@@ -398,7 +399,14 @@ def search(args) -> dict[str, Any]:
             if c.fetch_status == "ok":
                 cache_payload = save_candidate_cache(c)
                 c.extra["fetch_cache_key"] = cache_payload["cache_key"]
-        write_stage(run_dir, "fetch_bodies", "ok", fetched_ok=sum(1 for c in top if c.fetch_status == "ok"), cleanup=cleanup_report)
+        write_stage(
+            run_dir,
+            "fetch_bodies",
+            "ok",
+            fetched_ok=sum(1 for c in top if c.fetch_status == "ok"),
+            fetch_blocked=sum(1 for c in top if c.fetch_status == "blocked"),
+            cleanup=cleanup_report,
+        )
         body_candidates = [c for c in top if c.fetched_content]
         write_stage(run_dir, "body_rerank", "started", input_count=len(body_candidates), return_count=return_count)
         body_ranked, body_rerank_report = apply_body_rerank(ranking_query, body_candidates or top, cfg["reranker"], allow_rule_fallback=args.allow_rule_fallback)
@@ -463,7 +471,14 @@ def search(args) -> dict[str, Any]:
             if c.fetch_status == "ok":
                 cache_payload = save_candidate_cache(c)
                 c.extra["fetch_cache_key"] = cache_payload["cache_key"]
-        write_stage(run_dir, "fetch_bodies", "ok", fetched_ok=sum(1 for c in top if c.fetch_status == "ok"), cleanup=cleanup_report)
+        write_stage(
+            run_dir,
+            "fetch_bodies",
+            "ok",
+            fetched_ok=sum(1 for c in top if c.fetch_status == "ok"),
+            fetch_blocked=sum(1 for c in top if c.fetch_status == "blocked"),
+            cleanup=cleanup_report,
+        )
     elif fetch_mode == "defer" and fetch_enabled:
         top = apply_inline_content(top[:return_count], fetcher_cfg)
         top, cleanup_report = clean_top_content(top, cfg["content_cleaner"])
@@ -488,6 +503,7 @@ def search(args) -> dict[str, Any]:
         "returned": len(top),
         "fetched_ok": sum(1 for c in top if c.fetch_status == "ok"),
         "fetched_failed": sum(1 for c in top if c.fetch_status == "failed"),
+        "fetch_blocked": sum(1 for c in top if c.fetch_status == "blocked"),
         "fetch_auth_required": sum(1 for c in top if c.fetch_status == "auth_required"),
         "fetch_enabled": fetch_enabled and fetch_mode != "off",
         "fetch_mode": fetch_mode,
@@ -501,6 +517,7 @@ def search(args) -> dict[str, Any]:
         "reranker_ok": rerank_report.get("ok"),
         "dedupe": dedupe_report,
         "time_filter": time_filter_report,
+        "provider_collection": provider_collection,
         "source_reports": source_reports,
     }
 
@@ -529,6 +546,7 @@ def search(args) -> dict[str, Any]:
                     "fetch_status": c.fetch_status,
                     "error": c.fetch_error,
                     "fetch_error": c.fetch_error,
+                    "fetch_error_kind": c.extra.get("fetch_error_kind"),
                     "cache_key": c.extra.get("fetch_cache_key") or cache_key_for_candidate(c),
                 }
                 for i, c in enumerate(top)

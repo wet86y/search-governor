@@ -32,6 +32,7 @@ os.environ.setdefault("SG_APP_HOME", str(SG_APP_HOME))
 
 from search_governor.config import load_all_configs
 from search_governor.content_cleaner import clean_text
+from search_governor.url_safety import validate_external_http_url
 
 
 # --- Verification/challenge detection ---
@@ -202,6 +203,8 @@ def fetch_with_browser(
 ) -> dict[str, Any]:
     """Fetch a URL via the OpenClaw browser and return page content."""
 
+    validate_external_http_url(url)
+
     # Start browser
     started_at = time.perf_counter()
     browser_request("POST", "/start", profile=profile, timeout=command_timeout, query={"headless": headless} if headless else None)
@@ -233,6 +236,16 @@ def fetch_with_browser(
 
     elapsed_ms = int((time.perf_counter() - opened_at) * 1000)
     final_url = str(last_page.get("url") or opened.get("url") or "")
+    if status == "ok":
+        try:
+            validate_external_http_url(final_url)
+        except Exception:
+            if tab_ref and not keep_tab:
+                try:
+                    browser_request("DELETE", f"/tabs/{quote(str(tab_ref), safe='')}", profile=profile, timeout=command_timeout)
+                except Exception:
+                    pass
+            raise
     text = str(last_page.get("text") or "")
     title = str(last_page.get("title") or opened.get("title") or "")
 

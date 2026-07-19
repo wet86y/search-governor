@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-VERSION="${1:-0.1.1}"
+VERSION="${1:-0.1.2}"
 OUT="${2:-$ROOT/dist/search-governor-v${VERSION}.zip}"
 
 git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null

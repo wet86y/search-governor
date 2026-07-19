@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -79,6 +80,24 @@ def switch_current(install_root: Path, release_dir: Path) -> str | None:
     return previous
 
 
+def prune_releases(releases: Path, current_release: Path, previous_current: str | None) -> list[str]:
+    """Keep only the current release and the release that was current before it."""
+
+    keep = {current_release.name}
+    if previous_current:
+        previous_path = Path(previous_current)
+        if len(previous_path.parts) == 2 and previous_path.parts[0] == "releases":
+            keep.add(previous_path.name)
+
+    removed: list[str] = []
+    for candidate in sorted(releases.iterdir(), key=lambda path: path.name):
+        if candidate.name in keep or candidate.is_symlink() or not candidate.is_dir():
+            continue
+        shutil.rmtree(candidate)
+        removed.append(candidate.name)
+    return removed
+
+
 def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv: bool = False) -> dict:
     source = source.expanduser().resolve()
     install_root = install_root.expanduser().resolve()
@@ -124,6 +143,7 @@ def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv:
         env_file.chmod(0o600)
 
     previous = switch_current(install_root, release_dir)
+    pruned_releases = prune_releases(releases, release_dir, previous)
     wrapper = install_wrapper(install_root, bin_dir.expanduser().resolve())
     state = {
         "version": 1,
@@ -133,6 +153,7 @@ def deploy(source: Path, install_root: Path, ref: str, bin_dir: Path, skip_venv:
         "source": str(source),
         "current": str(release_dir),
         "previous_current": previous,
+        "pruned_releases": pruned_releases,
         "runtime": str(runtime),
         "wrapper": str(wrapper),
         "installed_at": datetime.now().isoformat(timespec="seconds"),

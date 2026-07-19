@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+## 0.1.2
+
+- Block private, local, reserved, and otherwise unsafe body-fetch targets, including DNS results and HTTP redirect destinations, without browser fallback.
+- Collect all selected Provider adapters concurrently while preserving report order, per-Provider timeouts, and failure isolation.
 - Redesign the project homepage around multi-source governance, the three search modes, body processing, and Agent integration.
 - Fix split-layout path resolution for fast deferred body fetching and the relative OpenClaw browser fallback script.
 - Add regression coverage proving release-owned helper scripts remain separate from persistent runtime data.
+- Keep only the current and immediately previous immutable local releases while retaining a stable `current` plugin entry.
 
 ## 0.1.1
 

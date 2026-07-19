@@ -3,6 +3,8 @@ import json
 import os
 import shlex
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 from .sources import SourceSpec
 from .normalizer import raw_to_candidate
@@ -23,7 +25,6 @@ REQUEST_PARAM_KEYS = [
     "country",
     "include_provider_answer",
 ]
-
 
 def _is_requested(value: Any) -> bool:
     return value not in (None, "", [], {}, False)
@@ -130,6 +131,13 @@ def collect_from_source(source: SourceSpec, request: dict[str, Any]) -> tuple[li
             "error": f"timeout after {timeout}s",
             "param_report": build_param_report(source, req, {}),
         }
+    except OSError as exc:
+        return [], {
+            "source": source.id,
+            "ok": False,
+            "error": f"adapter process could not start: {exc.strerror or type(exc).__name__}",
+            "param_report": build_param_report(source, req, {}),
+        }
     adapter_report, clean_stderr = parse_adapter_report(p.stderr or "")
     if p.returncode != 0:
         return [], {
@@ -155,21 +163,39 @@ def collect_from_source(source: SourceSpec, request: dict[str, Any]) -> tuple[li
             candidates.append(cand)
         else:
             bad_lines += 1
-    return candidates, {
+    report = {
         "source": source.id,
-        "ok": True,
+        "ok": not (bad_lines and not candidates),
         "count": len(candidates),
         "bad_lines": bad_lines,
         "stderr": clean_stderr,
         "adapter_report": adapter_report,
         "param_report": build_param_report(source, req, adapter_report),
     }
+    if bad_lines and not candidates:
+        report["error"] = "adapter returned no valid Candidate JSONL"
+    return candidates, report
 
 
-def collect_all(sources: list[SourceSpec], request: dict[str, Any]) -> tuple[list[Candidate], list[dict[str, Any]]]:
-    all_candidates: list[Candidate] = []
-    reports: list[dict[str, Any]] = []
+def _collection_failure_report(source: SourceSpec, source_request: dict[str, Any], exc: Exception) -> dict[str, Any]:
+    return {
+        "source": source.id,
+        "ok": False,
+        "error": f"provider collection failed: {type(exc).__name__}",
+        "count": 0,
+        "bad_lines": 0,
+        "param_report": build_param_report(source, source_request, {}),
+    }
+
+
+def collect_all(
+    sources: list[SourceSpec],
+    request: dict[str, Any],
+    collection_report: dict[str, Any] | None = None,
+) -> tuple[list[Candidate], list[dict[str, Any]]]:
+    started_at = time.perf_counter()
     provider_counts = request.get("provider_counts") if isinstance(request.get("provider_counts"), dict) else {}
+    prepared: list[tuple[SourceSpec, dict[str, Any], Any]] = []
     for s in sources:
         source_request = dict(request)
         requested_count = source_request.get("per_provider_count")
@@ -180,11 +206,55 @@ def collect_all(sources: list[SourceSpec], request: dict[str, Any]) -> tuple[lis
         if max_results and requested_count:
             effective_count = min(int(requested_count), int(max_results))
             source_request["per_provider_count"] = effective_count
-        items, report = collect_from_source(s, source_request)
+        prepared.append((s, source_request, requested_count))
+
+    concurrency = max(1, len(sources))
+    results: list[tuple[list[Candidate], dict[str, Any]] | None] = [None] * len(prepared)
+
+    def collect_one(index: int) -> tuple[int, list[Candidate], dict[str, Any]]:
+        source, source_request, _ = prepared[index]
+        try:
+            items, report = collect_from_source(source, source_request)
+        except Exception as exc:
+            items, report = [], _collection_failure_report(source, source_request, exc)
+        return index, items, report
+
+    if concurrency == 1:
+        for index in range(len(prepared)):
+            result_index, items, report = collect_one(index)
+            results[result_index] = (items, report)
+    else:
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            futures = [pool.submit(collect_one, index) for index in range(len(prepared))]
+            for future in as_completed(futures):
+                result_index, items, report = future.result()
+                results[result_index] = (items, report)
+
+    all_candidates: list[Candidate] = []
+    reports: list[dict[str, Any]] = []
+    for index, (s, source_request, requested_count) in enumerate(prepared):
+        result = results[index]
+        if result is None:
+            items, report = [], _collection_failure_report(s, source_request, RuntimeError("missing result"))
+        else:
+            items, report = result
+        report.setdefault("count", len(items))
+        report.setdefault("bad_lines", 0)
+        report.setdefault("param_report", build_param_report(s, source_request, {}))
         report["requested_count"] = requested_count
         report["effective_count"] = source_request.get("per_provider_count")
         if requested_count != source_request.get("per_provider_count"):
             report["count_capped"] = True
         all_candidates.extend(items)
         reports.append(report)
+
+    if collection_report is not None:
+        collection_report.update(
+            {
+                "mode": "serial" if concurrency == 1 else "concurrent",
+                "max_concurrency": concurrency,
+                "provider_count": len(sources),
+                "elapsed_ms": int((time.perf_counter() - started_at) * 1000),
+            }
+        )
     return all_candidates, reports
