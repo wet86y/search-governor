@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Align remote publication with Personal KB Toolkit: GitHub remains a source-only `main` branch without version tags, GitHub Releases, or uploaded assets; immutable runtime releases remain local.
+
 ## 0.1.3
 
 - Add a one-command local release workflow that validates a clean committed `HEAD`, runs the full checks, generates the private-extended OpenClaw Skill, atomically switches `current`, restarts the Gateway, and verifies the stable CLI and plugin load.
